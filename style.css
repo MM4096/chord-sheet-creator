@@ -25,6 +25,7 @@
 body {
     font-family: "JetBrains Mono", monospace;
     white-space: pre;
+    font-size: 0.8em;
 }
 
 .title-block {

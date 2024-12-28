@@ -124,12 +124,15 @@ def parse_input(input_string: str) -> list[dict]:
 				current_character_index = end_index + 1
 
 				chord_buffer += string
-
 				continue
 
 			this_line_content.append({"char": current_character, "chord": chord_buffer})
 			chord_buffer = ""
 			current_character_index += 1
+
+		if chord_buffer != "":
+			this_line_content.append({"char": "", "chord": chord_buffer})
+			chord_buffer = ""
 
 		this_section_content.append(this_line_content)
 
@@ -198,12 +201,13 @@ def parse_input_to_html(input_string: str) -> str:
 					chord_buffer = chord_buffer[1:]
 
 					text_line += char_item["char"]
+				chord_line += chord_buffer
 
 				output += f"<p><strong>{chord_line}</strong></p>"
 				output += f"<p>{text_line}</p>"
 				output += "<br>"
 
-			output += "</div><br><br>"
+			output += "</div>"
 
 
 		else:
