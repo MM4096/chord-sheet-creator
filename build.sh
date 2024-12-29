@@ -2,4 +2,4 @@
 
 cd "$(dirname "$0")" || exit
 source .venv/bin/activate
-pyinstaller -F -n chord-chart-creator main.py
+pyinstaller -F -n "chord-chart-creator" --add-data "fonts:fonts" --add-data "style.css:." main.py

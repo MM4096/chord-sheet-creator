@@ -5,6 +5,11 @@ from weasyprint.text.fonts import FontConfiguration
 
 from modules.custom_print import print_info, print_ok, print_error
 from modules.parser import convert_file_to_html, ParserException
+from modules.resource_path import resource_path
+
+options: dict = {
+	"include_warnings": True,
+}
 
 
 def insert_content(title, content) -> str:
@@ -25,56 +30,59 @@ def insert_content(title, content) -> str:
 def convert_html_to_pdf(html_content, output_path):
 	font_configuration = FontConfiguration()
 	html = HTML(string=html_content)
-	css_contents = '''
-		@font-face {
+	css_contents = f'''
+		@font-face {{
 		    font-family: "JetBrains Mono";
-		    src: url("fonts/JetBrainsMono-Regular.woff2");
-		}
+		    src: url("{resource_path("fonts/JetBrainsMono-Regular.woff2")}");
+		}}
 		
-		@font-face {
-		    font-family: "JetBrains Mono";
-		    font-weight: bold;
-		    src: url("fonts/JetBrainsMono-ExtraBold.woff2");
-		}
-		
-		@font-face {
-		    font-family: "JetBrains Mono";
-		    font-style: italic;
-		    src: url("fonts/JetBrainsMono-Italic.woff2");
-		}
-		
-		@font-face {
+		@font-face {{
 		    font-family: "JetBrains Mono";
 		    font-weight: bold;
-		    font-style: italic;
-		    src: url("fonts/JetBrainsMono-BoldItalic.woff2");
-		}
+		    src: url("{resource_path("fonts/JetBrainsMono-ExtraBold.woff2")}");
+		}}
 		
-		body {
+		@font-face {{
+		    font-family: "JetBrains Mono";
+		    font-style: italic;
+		    src: url("{resource_path("fonts/JetBrainsMono-Italic.woff2")}");
+		}}
+		
+		@font-face {{
+		    font-family: "JetBrains Mono";
+		    font-weight: bold;
+		    font-style: italic;
+		    src: url("{resource_path("fonts/JetBrainsMono-BoldItalic.woff2")}");
+		}}
+		
+		body {{
 		    font-family: "JetBrains Mono", monospace;
 		    white-space: pre;
 		    font-size: 0.8em;
-		}
+		}}
 		
-		.title-block {
+		.title-block {{
 		    border: 1px solid #333333;
-		    * {
+		    * {{
 		        margin: 10px;
-		    }
-		}
+		    }}
+            margin-top: 0 !important;
+		}}
 		
-		.section-block {
+		.section-block {{
 		    line-height: 1em;
 		    margin: 0;
 		    padding: 0;
-		    * {
+		    break-inside: avoid;
+		    * {{
 		        margin: 0;
 		        padding: 0;
-		    }
-		}
+		    }}
+		}}
 	'''
+	# Use css_contents for autofill-ing paths
 	css = CSS(string=css_contents, font_config=font_configuration)
-	html.write_pdf(output_path, stylesheets=[css, CSS(string="@page { size: A4; margin: 0.5cm }")], font_config=font_configuration)
+	html.write_pdf(output_path, stylesheets=[css, CSS(string="@page { size: A4; margin: 1cm }")], font_config=font_configuration)
 
 
 if __name__ == '__main__':
