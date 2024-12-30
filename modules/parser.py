@@ -1,6 +1,7 @@
 from typing import Any
 
-from modules.custom_print import print_error, print_warning
+from modules.custom_print import print_error, print_warning, print_info
+from modules.tools import convert_to_bool
 
 
 class ParserException(Exception):
@@ -36,12 +37,30 @@ def parse_input(input_string: str) -> list[dict]:
 
 		return i, func_input_string[start_index:]
 
+	def get_section_with_name(name: str, current_output: list) -> dict:
+		for item in current_output:
+			if item["type"] == "section" and item["title"] == name:
+				return item
+		raise ValueError(f"Section {name} not found")
+
+	def is_section_empty(current_section: list) -> bool:
+		for _line in current_section:
+			if _line:
+				return False
+		return True
+
 	output: list[dict] = []
 	this_section_name: str = ""
 	this_section_content: list[list[dict[str, Any]]] = []
+	this_section_settings: dict[str, Any] = {}
 	title: str = ""
 	description: str = ""
 	order: str = ""
+
+	additional_settings: dict[str, Any] = {
+		"ignore_closing_section": False,
+		"ignore_useless_lines": False,
+	}
 
 	chord_buffer: str = ""
 
@@ -49,6 +68,8 @@ def parse_input(input_string: str) -> list[dict]:
 	for index, line in enumerate(lines):
 		if line.startswith('#'):
 			continue
+
+		display_line_index: int = index + 1
 
 		this_line_content: list[dict[str, str]] = []
 
@@ -63,35 +84,36 @@ def parse_input(input_string: str) -> list[dict]:
 				if split_command[0] == "title":
 					if len(split_command) < 2:
 						print_error(
-							f"Error on line {index}: Missing required argument for title: [title_name]\n\t(at {line})")
+							f"Error on line {display_line_index}: Missing required argument for title: [title_name]\n\t(at {line})")
 						raise MissingArgument()
 					if title != "":
-						print_warning(f"Warning on line {index}: Title is already set. Overwriting.")
+						print_warning(f"Warning on line {display_line_index}: Title is already set. Overwriting.")
 					split_command.pop(0)
 					title = " ".join(split_command)
 				elif split_command[0] == "description":
 					if len(split_command) < 2:
 						print_error(
-							f"Error on line {index}: Missing required argument for description: [description]\n\t(at {line})")
+							f"Error on line {display_line_index}: Missing required argument for description: [description]\n\t(at {line})")
 						raise MissingArgument()
 					if description != "":
-						print_warning(f"Warning on line {index}: Description is already set. Appending.")
+						print_warning(f"Warning on line {display_line_index}: Description is already set. Appending.")
 						description += "\n"
 					split_command.pop(0)
 					description += " ".join(split_command)
 				elif split_command[0] == "order":
 					if len(split_command) < 2:
 						print_error(
-							f"Error on line {index}: Missing required argument for order: [order_number]\n\t(at {line})")
+							f"Error on line {display_line_index}: Missing required argument for order: [order_number]\n\t(at {line})")
 						raise MissingArgument()
 					if order != 0:
-						print_warning(f"Warning on line {index}: Order is already set. Overwriting.")
+						print_warning(f"Warning on line {display_line_index}: Order is already set. Overwriting.")
 					split_command.pop(0)
 					order = " ".join(split_command)
 				elif split_command[0] in ["begin", "beginsection", "section"]:
 					if this_section_name != "":
-						print_warning(
-							f"Warning on line {index}: Current section ({this_section_name}) wasn't properly closed with {{endsection}}. Manually ending the section.")
+						if not additional_settings["ignore_closing_section"]:
+							print_warning(
+								f"Warning on line {display_line_index}: Current section ({this_section_name}) wasn't properly closed with {{endsection}}. Manually ending the section.")
 						if len(this_section_content) != 0:
 							this_section_content.append(this_line_content)
 							output.append({
@@ -105,17 +127,58 @@ def parse_input(input_string: str) -> list[dict]:
 				elif split_command[0] in ["end", "endsection", "sectionend"]:
 					if this_section_name == "":
 						print_error(
-							f"Error on line {index}: Section was ended without a section starting.\n\t(at {line})")
+							f"Error on line {display_line_index}: Section was ended without a section starting.\n\t(at {line})")
 						raise InvalidArgument()
-					if len(this_section_content) != 0:
-						this_section_content.append(this_line_content)
+					this_section_content.append(this_line_content)
+					if not is_section_empty(this_section_content):
 						output.append({
 							"type": "section",
 							"title": this_section_name,
 							"lines": this_section_content,
+							"settings": this_section_settings,
 						})
+					else:
+						try:
+							output.append(get_section_with_name(this_section_name, output))
+							print_info(f"Info on line {display_line_index}: Re-using section {this_section_name}, since definition was empty.\n\t(at: {line})")
+						except ValueError:
+							print_warning(f"Warning on line {display_line_index}: Blank section {this_section_name} wasn't defined. Skipping.\n\t(at: {line})")
+
 					this_section_content = []
 					this_section_name = ""
+					this_section_settings = {}
+				elif split_command[0] == "setting":
+					if len(split_command) < 2:
+						print_warning(f"Warning on line {display_line_index}: Missing required arguments for setting: [setting_name], [setting_value]. Skipping.\n\t(at {line})")
+					elif len(split_command) < 3:
+						print_warning(f"Warning on line {display_line_index}: Missing required argument for setting: [setting_value]. Skipping.\n\t(at {line})")
+					else:
+						split_command.pop(0)
+						setting_name = split_command.pop(0)
+						setting_contents = " ".join(split_command)
+
+						if setting_name == "hidden":
+							if this_section_name == "":
+								print_error(f"Error on line {display_line_index}: Setting `hidden` can only be used in a section.\n\t(at {line})")
+								raise InvalidArgument()
+							try:
+								this_section_settings["hidden"] = convert_to_bool(setting_contents)
+								if not convert_to_bool(setting_contents):
+									if not additional_settings["ignore_useless_lines"]:
+										print_warning(f"Warning on line {display_line_index}: Setting `hidden` is redundant.\n\t(at {line})")
+							except ValueError:
+								print_error(f"Error on line {display_line_index}: Invalid argument type. Expected boolean.\n\t(at {line})")
+								raise InvalidArgument()
+
+						elif setting_name not in additional_settings:
+							additional_settings[setting_name] = setting_contents
+							print_warning(f"Warning on line {display_line_index}: {setting_name} isn't a valid setting..\n\t(at {line})")
+						elif setting_name == "ignore_closing_section":
+							try:
+								additional_settings[setting_name] = convert_to_bool(setting_contents)
+							except ValueError as e:
+								print_warning(f"Warning on line {display_line_index}: {e} (treated as warning).\n\t(at {line})")
+
 
 				continue
 
@@ -137,14 +200,23 @@ def parse_input(input_string: str) -> list[dict]:
 		this_section_content.append(this_line_content)
 
 	if this_section_name != "":
-		print_warning(
-			f"Warning on line {len(lines) - 1}: Current section ({this_section_name}) wasn't properly closed with {{endregion}}. Manually ending the section.")
-		if len(this_section_content) != 0:
+		if not additional_settings["ignore_closing_section"]:
+			print_warning(
+				f"Warning on line {len(lines) - 1}: Current section ({this_section_name}) wasn't properly closed with {{endsection}}. Manually ending the section.")
+
+		if not is_section_empty(this_section_content):
 			output.append({
 				"type": "section",
 				"title": this_section_name,
 				"lines": this_section_content,
+				"settings": this_section_settings,
 			})
+		else:
+			try:
+				output.append(get_section_with_name(this_section_name, output))
+				print_info(f"Info on line {len(lines)}: Re-using section {this_section_name}, since definition was empty")
+			except ValueError:
+				print_warning(f"Blank section {this_section_name} wasn't defined. Skipping.")
 
 	output.append({
 		"type": "title",
@@ -182,6 +254,9 @@ def parse_input_to_html(input_string: str) -> str:
 
 
 		elif section["type"] == "section":
+			if "hidden" in section["settings"].keys():
+				if section["settings"]["hidden"]:
+					continue
 			output += "<br><div class='section-block'>"
 			output += f"<p><strong><u>{section["title"]}</u></strong></p>"
 			for line in section["lines"]:

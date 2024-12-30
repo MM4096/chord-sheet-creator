@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
@@ -8,7 +9,6 @@ from modules.parser import convert_file_to_html, ParserException
 from modules.resource_path import resource_path
 
 options: dict = {
-	"include_warnings": True,
 }
 
 
@@ -58,7 +58,7 @@ def convert_html_to_pdf(html_content, output_path):
 		body {{
 		    font-family: "JetBrains Mono", monospace;
 		    white-space: pre;
-		    font-size: 0.8em;
+		    font-size: {options["scale"]}em;
 		}}
 		
 		.title-block {{
@@ -101,25 +101,32 @@ if __name__ == '__main__':
 		type=str,
 		help="Path to the output PDF file"
 	)
+	parser.add_argument(
+		"--scale", "-s",
+		type=float,
+		default=0.8,
+		help="Scale the PDF text"
+	)
+	options = vars(parser.parse_args())
 
-	print_info(f"Creating chord charts from {parser.parse_args().input_file}")
+	print_info(f"Creating chord charts from {options["input_file"]}")
 
 	try:
-		html = convert_file_to_html(parser.parse_args().input_file)
+		html = convert_file_to_html(options["input_file"])
 	except ParserException as e:
 		print_error(f"An error occurred while converting input to PDF")
-		exit(1)
+		sys.exit(1)
 	except FileNotFoundError:
-		print_error(f"Error: could not find input path {parser.parse_args().input_file}")
+		print_error(f"Error: could not find input path {options["input_file"]}")
 		print_error(f"An error occurred while looking for the file")
-		exit(1)
+		sys.exit(1)
 
 	convert_html_to_pdf(
 		insert_content(
 			"Score",
 			html
 		),
-		parser.parse_args().output_file
+		options["output_file"]
 	)
 
-	print_ok(f"Wrote PDF to {parser.parse_args().output_file}")
+	print_ok(f"Wrote PDF to {options["output_file"]}")
