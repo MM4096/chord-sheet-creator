@@ -2,4 +2,3 @@ tests
 .idea
 build/
 dist/
-chord-chart-creator.spec
