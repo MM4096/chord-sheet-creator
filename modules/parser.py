@@ -254,7 +254,8 @@ def parse_input_to_html(input_string: str) -> str:
 
 
 		elif section["type"] == "section":
-			if "hidden" in section["settings"].keys():
+			# TODO: Issues with no section
+			if "settings" in section.keys() and "hidden" in section["settings"].keys():
 				if section["settings"]["hidden"]:
 					continue
 			output += "<br><div class='section-block'>"

@@ -7,14 +7,40 @@ Create beautiful chord charts for any song!
 
 # Usage
 ```
-usage: chord-chart-creator [-h] [--scale SCALE] input_file output_file
+usage: chord-chart-creator [-h] [--output-path OUTPUT_PATH] [--scale SCALE] input_file
 ```
 
 ### `input-file` (required)
-The path to the input file. See [Syntax](#syntax) for the syntax of this file.
+The path to the input path or directory.
+If a directory is given, all files in that directory are converted non-recursively, **_even if it isn't a score file_**.
 
-### `output-file` (required)
-Output location of the rendered PDF
+
+See [Syntax](#syntax) for the syntax of this file.
+
+### `--output-file` or `-o`
+Output location of the rendered PDF.
+
+If `--output-file` is not given, or is a directory, the resulting file is stored in `cwd/output_if_directory/input_file(noextention).pdf`
+
+For example:
+```text
+chord-chart-creator ./scores --output-file ./output
+```
+will convert files as follows:
+```text
+cwd
+|- scores
+||- a.score
+||- asdf.someotherextension
+||- hi_there
+||- text_file.txt
+|
+|- output
+||- a.pdf
+||- asdf.pdf
+||- hi_there.pdf
+||- text_file.pdf
+```
 
 ### `-s` or `--scale`
 Text scale on the rendered PDF (default: `0.8`)
