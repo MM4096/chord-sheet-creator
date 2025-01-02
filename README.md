@@ -29,17 +29,17 @@ chord-chart-creator ./scores --output-file ./output
 will convert files as follows:
 ```text
 cwd
-|- scores
-||- a.score
-||- asdf.someotherextension
-||- hi_there
-||- text_file.txt
+├─ scores
+|  ├─- a.score
+|  ├─- asdf.someotherextension
+|  ├─- hi_there
+|  └─- text_file.txt
 |
-|- output
-||- a.pdf
-||- asdf.pdf
-||- hi_there.pdf
-||- text_file.pdf
+├─ output
+|  ├─ a.pdf
+|  ├─ asdf.pdf
+|  ├─ hi_there.pdf
+|  └─ text_file.pdf
 ```
 
 ### `-s` or `--scale`
