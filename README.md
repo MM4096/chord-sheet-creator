@@ -7,7 +7,7 @@ Create beautiful chord charts for any song!
 
 # Usage
 ```
-usage: chord-chart-creator [-h] [--output-path OUTPUT_PATH] [--scale SCALE] input_file
+usage: chord-chart-creator [-h] [--watch WATCH] [--output-path OUTPUT_PATH] [--scale SCALE] input_file
 ```
 
 ### `input-file` (required)
@@ -44,6 +44,9 @@ cwd
 
 ### `-s` or `--scale`
 Text scale on the rendered PDF (default: `0.8`)
+
+### `-w` or `--watch`
+If set to `True`, the program doesn't exit, but compiles all source files in `input_file` (which must be a directory) everytime a file is edited. 
 
 ### `-h`
 Help menu. Use with any other arguments to get their description.

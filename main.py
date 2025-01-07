@@ -10,6 +10,8 @@ from modules.parser import convert_file_to_html, ParserException
 from modules.resource_path import resource_path
 from os.path import join, isfile, isdir, splitext, basename
 
+from modules.watcher import watch
+
 options: dict = {
 }
 
@@ -29,7 +31,7 @@ def insert_content(title, content) -> str:
 	'''
 
 
-def convert_html_to_pdf(html_content, output_path):
+def convert_html_to_pdf(html_content, output_path, this_options):
 	font_configuration = FontConfiguration()
 	html = HTML(string=html_content)
 	css_contents = f'''
@@ -60,7 +62,7 @@ def convert_html_to_pdf(html_content, output_path):
 		body {{
 		    font-family: "JetBrains Mono", monospace;
 		    white-space: pre;
-		    font-size: {options["scale"]}em;
+		    font-size: {this_options["scale"]}em;
 		}}
 		
 		.title-block {{
@@ -84,7 +86,51 @@ def convert_html_to_pdf(html_content, output_path):
 	'''
 	# Use css_contents for autofill-ing paths
 	css = CSS(string=css_contents, font_config=font_configuration)
-	html.write_pdf(output_path, stylesheets=[css, CSS(string="@page { size: A4; margin: 1cm }")], font_config=font_configuration)
+	html.write_pdf(output_path, stylesheets=[css, CSS(string="@page { size: A4; margin: 1cm }")],
+	               font_config=font_configuration)
+
+
+def parse_files(this_options):
+	print(this_options)
+	files_to_convert: list = []
+	if isdir(this_options["input_path"]):
+		files_to_convert = [join(this_options["input_path"], i) for i in os.listdir(this_options["input_path"]) if
+		                    isfile(join(this_options["input_path"], i))]
+	else:
+		files_to_convert.append(this_options["input_path"])
+
+	try:
+		for index, file in enumerate(files_to_convert):
+			output_file_location: str = this_options["output_path"]
+			if output_file_location == "" or isdir(output_file_location):
+				# output_file_location = os.path.splitext(file)[0] + ".pdf"
+				output_file_name = basename(file).split(".")[0] + ".pdf"
+				output_file_location = join(output_file_location, output_file_name)
+
+			printstr: str = f"Converting {file} to pdf"
+			if len(files_to_convert) > 1:
+				printstr += f" ({index + 1}/{len(files_to_convert)})"
+			print(printstr)
+			html = convert_file_to_html(file)
+
+			convert_html_to_pdf(
+				insert_content(
+					"Score",
+					html
+				),
+				output_file_location,
+				this_options
+			)
+
+			print_ok(f"Wrote PDF to {output_file_location}")
+
+	except ParserException as e:
+		print_error(f"An error occurred while converting input to PDF")
+		sys.exit(1)
+	except FileNotFoundError:
+		print_error(f"Error: could not find input path {this_options["input_path"]}")
+		print_error(f"An error occurred while looking for the file")
+		sys.exit(1)
 
 
 if __name__ == '__main__':
@@ -95,11 +141,18 @@ if __name__ == '__main__':
 	parser.add_argument(
 		"input_path",
 		type=str,
-		help="Path to the score file"
+		help="Path to the score file or a directory that contains score files."
 	)
 
 	parser.add_argument(
-		"--output-file", "-o",
+		"--watch", "-w",
+		type=bool,
+		default=False,
+		help="Whether to watch the given file/directory for changes, and compile automatically on change."
+	)
+
+	parser.add_argument(
+		"--output-path", "-o",
 		type=str,
 		help="Path to the output PDF file. Defaults to the input file's name, but with a .pdf extension",
 		default=""
@@ -112,42 +165,12 @@ if __name__ == '__main__':
 	)
 	options = vars(parser.parse_args())
 
-	files_to_convert: list = []
-	if isdir(options["input_path"]):
-		files_to_convert = [join(options["input_path"], i) for i in os.listdir(options["input_path"]) if isfile(join(options["input_path"], i))]
+	if options["watch"]:
+		if not os.path.isdir(options["input_path"]):
+			print_error(f"Error: input path {options["input_path"]} is not a directory.\n\tWhen using --watch, input_path must be a directory.")
+			sys.exit(1)
+		watch(options["input_path"], options)
 	else:
-		files_to_convert.append(options["input_path"])
-
-	try:
-		for index, file in enumerate(files_to_convert):
-			output_file_location: str = options["putput_path"]
-			if output_file_location == "" or isdir(output_file_location):
-				# output_file_location = os.path.splitext(file)[0] + ".pdf"
-				output_file_name = basename(file).split(".")[0] + ".pdf"
-				output_file_location = join(output_file_location, output_file_name)
-			
-			printstr: str = f"Converting {file} to pdf"
-			if len(files_to_convert) > 1:
-				printstr += f" ({index + 1}/{len(files_to_convert)})"
-			print(printstr)
-			html = convert_file_to_html(file)
-
-			convert_html_to_pdf(
-				insert_content(
-					"Score",
-					html
-				),
-				output_file_location
-			)
-
-			print_ok(f"Wrote PDF to {output_file_location}")
-
-	except ParserException as e:
-		print_error(f"An error occurred while converting input to PDF")
-		sys.exit(1)
-	except FileNotFoundError:
-		print_error(f"Error: could not find input path {options["input_path"]}")
-		print_error(f"An error occurred while looking for the file")
-		sys.exit(1)
+		parse_files(options)
 
 	print_ok("Done")

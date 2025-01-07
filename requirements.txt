@@ -1,1 +1,2 @@
 weasyprint>=63.1
+watchdog~=6.0.0
